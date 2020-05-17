@@ -7,7 +7,7 @@ Requirements
 
 To download dependencies use command after downloading and setting up python
 
-pip install kivy networkx 
+pip install kivy networkx numpy scipy
 
 For windows additionally we need
 pip install pywin32
