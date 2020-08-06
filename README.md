@@ -1,4 +1,5 @@
 # ALVIS
+For only building from source
 Requirements
 1.Kivy
 2.Networkx

@@ -2,7 +2,7 @@ import threading
 import networkx as nx
 from time import sleep
 import numpy as np
-from scipy.spatial import Delaunay
+from triangle import delaunay,voronoi
 
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.properties import *
@@ -14,10 +14,12 @@ from kivy.factory import Factory
 from kivy.animation import Animation
 from kivy.config import ConfigParser
 from kivy.uix.label import Label
+from kivy.clock import Clock, mainthread
 
 from networkx import (grid_2d_graph,hexagonal_lattice_graph,triangular_lattice_graph,
                     random_tree,balanced_tree,binomial_tree,full_rary_tree,barabasi_albert_graph,\
                     complete_graph,circulant_graph)
+
 
 
 
@@ -27,17 +29,20 @@ from networkx import (grid_2d_graph,hexagonal_lattice_graph,triangular_lattice_g
 ## nx.full_rary_tree(r,n),nx.binomial_tree(n),nx.complete_graph(n)/circulant_graph(n)
 
 
-class Graph(AnchorLayout):
+class Graph:
     
     l_size=ListProperty([100,100])
-    drew=BooleanProperty(False)
+    drew=False
     config=ConfigParser('alvis')
     config.read('alvis.ini')
-
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
-
+    
+    def __init__(self,app,root,**kwargs):
+        self.app=app
+        self.root=root
+        self.canvas=root.ids.viewspace_canvas.canvas
+        
         self.graph,self.n_pos=None,None
+
         config=self.config
         self.edge_color,self.node_color=list(map(float,config.getdefault('theme','edge','0.2,0.2,0.2,0.8').split(','))),list(map(float,config.getdefault('theme','node','0.21,0.2,0.2,0.8').split(',')))
         self.start_node_color,self.goal_node_color=list(map(float,config.getdefault('theme','start','1,0,1,1').split(','))),list(map(float,config.getdefault('theme','goal','1,0.5,0.5,1').split(',')))
@@ -54,100 +59,174 @@ class Graph(AnchorLayout):
         self.tree_params=None,None
         self.planar_params=[self.config.getdefaultint('Planar','n',0),float(self.config.getdefault('Planar','c_dist',0.15)),\
                             self.config.getdefault('Planar','fn','random'),self.config.getdefaultint('Planar','keep_same',0),\
-                            self.config.getdefaultint('Planar','sparse',0),self.config.getdefaultint('Planar','degree_max',5),self.config.getdefaultint('Planar','seed',0)]
+                            self.config.getdefaultint('Planar','sparse',0),self.config.getdefaultint('Planar','degree_max',5),self.config.getdefaultint('Planar','seed',0),True]
+
         self.old_params=[*self.planar_params] if self.category=='Planar'  else [*self.tree_params] if self.category=='Tree'  else [*self.lattice_params] 
         self.old_params+=[self.category,self.g_type]
 
         self.draw_scale=None
-        self.point_size=config.getdefaultint('theme','point size',0)
-        self.d=None
+        self.point_size=config.getdefaultint('theme','point size',6)
+        
+        self.graph_n_gulation=None
         self.graph_edit_mode=None
-        self.start_node,self.goal_node=None,None
+        self.start_nodes,self.goal_nodes=[],[]
         self.tree_layout=self.config.getdefault('Tree','layout','Hierarchical')
 
         self.info=None
         
+            
     def clear_screen(self):
         if self.drew:
-            self.start_activity(self.parent.parent.ids['sl'].canvas.clear())
+            self.start_activity(self.canvas.clear())
             self.drew=False
-
+    
     def del_node(self,nodes):
-        self.graph.remove_nodes_from(nodes)
+        node_pos=nx.get_node_attributes(self.graph,'pos')        
+        node_arrays=self.canvas.get_group('nodes')
+        edge_inst=[i for i in self.canvas.get_group('edges') if type(i)==Mesh][0]
+       
+        edges_to_remove=[]
+        indices=edge_inst.indices
+        for node in nodes:
+            point=node_pos[node]
+            if self.category=='Planar':
+                   edges=[(node,i) for i in self.graph[node]]
+            elif self.category=='Lattice':
+                m,n=self.lattice_params
+                if self.g_type=='2d Grid/Lattice':
+                    edges=[(node[0]*n+node[1],i[0]*n+i[1]) for i in self.graph[node]]
+                elif self.g_type=='Triangular Lattice':
+                    n=(n+1)//2 if n%2 else n
+                    edges=[(node[0]*(m+1)+node[1] if node[0]!=n else node[0]*(m+1)+node[1]//2 ,i[0]*(m+1)+i[1] if i[0]!=n
+                            else i[0]*(m+1)+i[1]//2) for i in self.graph[node]]
+                else:
+                    m=2*m+1
+                    n=n+1 if n%2 else n
+                    ps=node[0]*m+node[1] if node[0]==0 else node[0]*m+node[1]+node[0]-1 if node[0]!=n else node[0]*m+node[1]+node[0]-2
+                    edges=[((ps,i[0]*m+i[1]) if i[0]==0 else (ps,i[0]*m+i[1]+i[0]-1) if i[0]!=n else (ps,i[0]*m+i[1]+i[0]-2))
+                           for i in self.graph[node]]
+                    
+                        
+            for i in range(0,len(indices),2):
+                edge=indices[i],indices[i+1]
+                for j in edges:
+                    if j[0] in edge and j[1] in edge:
+                        edges.remove(j)
+                        edges_to_remove.append(i)
+                        break
+            
+                    
+            for i in edges_to_remove[::-1]:
+                edge_inst.indices.pop(i)
+                edge_inst.indices.pop(i)
+            
+            brk=0
+            for i in range(2,len(node_arrays),2):
+                arr=node_arrays[i]
+                for j in range(0,len(arr.points),2):
+                    node_point=arr.points[j],arr.points[j+1]
+                    if np.allclose(point,node_point):
+                        arr.points.pop(j)
+                        arr.points.pop(j)
+                        brk=1
+                        break
+                if brk:break         
+
+            if node in self.start_nodes:
+                strt_nodes=self.canvas.get_group('start_nodes')[-1]
+                for i in range(0, len(strt_nodes.points),2):
+                    strt_pos=strt_nodes.points[i],strt_nodes.points[i+1]
+                    if np.allclose(point,strt_pos):
+                        strt_nodes.points.pop(i)
+                        strt_nodes.points.pop(i)
+                        self.start_nodes.remove(node)
+                        strt_nodes.flag_update()
+                        break
+                    
+            elif node in self.goal_nodes:
+                goal_nodes=self.canvas.get_group('goal_nodes')[-1]
+                for i in range(0, len(goal_nodes.points),2):
+                    goal_pos=goal_nodes.points[i],goal_nodes.points[i+1]
+                    if np.allclose(point,goal_pos):
+                        goal_nodes.points.pop(i)
+                        goal_nodes.points.pop(i)
+                        self.goal_nodes.remove(node)
+                        goal_nodes.flag_update()
+                        break
+                    
+            
+            self.canvas.insert(self.canvas.indexof(edge_inst),
+                               Mesh(vertices=edge_inst.vertices,
+                                    indices=edge_inst.indices, mode="lines",group='edges'))
+                               
+            self.canvas.remove(edge_inst)
+            arr.flag_update()   
+               
+        self.graph.remove_nodes_from(nodes)        
         self.graph_edit_mode=None
         
-        u=self.parent.parent.ids['menu']
-        if self.start_node in nodes:
-            self.start_node=None
-            u.ids['sn'].disabled=False
-        if self.goal_node in nodes:
-            self.goal_node=None
-            u.ids['gn'].disabled=False
-        self.start_activity(self.draw)
         
+#to optimize
+    @mainthread
     def draw(self):
         
-        if not self.drew:self.drew=True
-
+        point_size=self.point_size*(0.00008 if self.category=='Planar' else 0.01)
         scale=self.draw_scale
+        invariate_scale=self.root.ids.viewspace_canvas.scale
+#to optimize       
+        pos=np.array([(*self.n_pos[i],0,0) for i in sorted(self.graph.nodes)],dtype='float32')
         
-        pos=np.array([(*self.n_pos[i],0,0) for i in sorted(self.n_pos.keys())],dtype='float32')
         edges=self.get_modified_edges()
         
-        self.parent.parent.ids['sl'].canvas.clear()
+        self.canvas.clear()
         
-        with self.parent.parent.ids['sl'].canvas:     
+        with self.canvas:     
             PushMatrix()
             Translate(1,1,0)
-            Scale(self.size[1]/scale,self.size[1]/scale,1)
-
-            Color(*self.edge_color)
-            for i in range(0,len(pos),65536):
-                Mesh(vertices=pos[i:i+65536].reshape(-1), indices=edges, mode="lines")
-
-            pos=np.array([self.n_pos[i] for i in self.graph.nodes])
-            Color(*self.node_color)
-            for i in range(0,len(pos),2**13):
-                Point(points=list(pos[i:i+2**13].reshape(-1)),pointsize=self.point_size/self.size[1]*scale)
-
-            if self.start_node:
-                Color(*self.start_node_color)
-                Point(points=self.n_pos[self.start_node],pointsize=2*self.point_size/self.size[1]*scale)
-
-            if self.goal_node:
-                Color(*self.goal_node_color)
-                Point(points=self.n_pos[self.goal_node],pointsize=2*self.point_size/self.size[1]*scale)
-            print(self.edge_color,self.node_color,self.start_node_color,self.goal_node_color)
-            PopMatrix()
+            Scale(scale,scale,1)
             
+            Color(*self.edge_color,group='edges')
+            for i in range(0,len(pos),65536):
+                Mesh(vertices=pos[i:i+65536].reshape(-1),
+                     indices=edges, mode="lines",group='edges')
+            
+            #to optimize
+            pos=pos[:,:2]
+
+            Color(*self.node_color,group='nodes')
+            for i in range(0,len(pos),16383):#16383):
+                Point(points=list(pos[i:i+16383].reshape(-1)),
+                      source='assets/images/textures/circle.png',
+                      pointsize=point_size,group='nodes')
+            
+            Color(*self.start_node_color,group='start_nodes')
+            Point(points=[],source='assets/images/textures/circle.png',
+                  pointsize=point_size/min(1,invariate_scale),group='start_nodes')
+
+            
+            Color(*self.goal_node_color,group='goal_nodes')
+            Point(points=[],source='assets/images/textures/circle.png',
+                  pointsize=point_size/min(1,invariate_scale),group='goal_nodes')
+
+            InstructionGroup(group='algorithm_runtime_activity')
+            InstructionGroup(group='overlay_algorithm')
+
+            PopMatrix()
+
+        if not self.drew:self.drew=True
+        
     def draw_labels(self):
         pass
-    
-    def planar_quadrangulation(self):
-        pass
-    
-    def graph_params_changed(self):
-        category=self.category
-        if category=='Tree':
-            new_params=self.tree_params
-        else:
-            new_params=self.lattice_params
-        new_params=[*new_params,self.category,self.g_type]
-        if self.old_params!=new_params:
-            self.old_params=[*new_params]
-            return True
-        else:
-            return False
         
     def gen_graph(self):
         
         self.show_info('Generating Graph')
         
         if not self.drew or self.category=='Planar' or self.graph_params_changed():
-            self.draw_scale=20 if self.category=='Lattice' else 0.5
-            self.start_node,self.goal_node=None,None
+            
+            self.start_nodes,self.goal_nodes=[],[]
 
-            u=self.parent.parent.ids['menu']
+            u=self.root.ids['menubar']
             u.ids['load'].disabled=True
             u.ids['sn'].disabled=True
             u.ids['gn'].disabled=True
@@ -156,25 +235,21 @@ class Graph(AnchorLayout):
             u.ids['cp'].disabled=True
             
             category=self.category
+            self.draw_scale=10000  if category=='Planar' else 200
             
-            if category=='Planar':
-                if not self.point_size:self.point_size=6
-                self.draw_scale=0.5      
-            else:
-                if not self.point_size:self.point_size=6
-                self.draw_scale=20
-
-                
             if category=='Planar':self.gen_planar_graph()
             
             elif category=='Tree':self.gen_tree_graph()
 
             else:self.gen_lattice_graph()
             
-            
             self.draw()
-            fn=lambda x,y:(((x[0]-y[0])**2+(x[1]-y[1])**2)**0.5)*(1+min(0.5,np.random.random()))
-            if self.weighted:nx.set_edge_attributes(self.graph,{i:fn(self.n_pos[i[0]],self.n_pos[i[1]]) for i in self.graph.edges},'weight')
+            #Clock.schedule_once(lambda *x:self.draw(),1)
+            fn=lambda x,y:(((x[0]-y[0])**2+(x[1]-y[1])**2)**0.5)*(1+0.2)#min(0.5,np.random.random()))
+            if self.weighted:nx.set_edge_attributes(self.graph,
+                                                    {i:fn(self.n_pos[i[0]],self.n_pos[i[1]])
+                                                     for i in self.graph.edges},'weight')
+            
             self.graph_params_changed()
 
             
@@ -186,8 +261,8 @@ class Graph(AnchorLayout):
             u.ids['cp'].disabled=False
         
         self.remove_info()
-        self.parent.parent.ids['menu'].ids['gen_graph'].disabled=False
-        
+        self.root.ids['menubar'].ids['gen_graph'].disabled=False
+        print(self.root.ids.viewspace_canvas.bbox,'lop')        
         
     def gen_lattice_graph(self):
         self.graph=self.graph_build_fn_dict[self.category][self.g_type](*self.lattice_params)
@@ -202,6 +277,7 @@ class Graph(AnchorLayout):
         self.graph=self.graph_build_fn_dict[self.category][self.g_type](*self.tree_params)
         self.n_pos=self.get_tree_pos()
 
+#to optimize
     def get_modified_edges(self):
         if self.category=='Lattice':
             m,n=self.lattice_params
@@ -222,58 +298,62 @@ class Graph(AnchorLayout):
                 p={i:i[0]*m+i[1] if i[0]==0 else i[0]*m+i[1]+i[0]-1 if i[0]!=n else i[0]*m+i[1]+i[0]-2 for i in sorted(self.graph.nodes)}
                 a=np.array([[p[i[0]],p[i[1]]] for i in self.graph.edges]).reshape(-1)
                 del p
-
+#to optimize
         else:
             a=np.array([i for i in self.graph.edges]).reshape(-1)
         return a
         
-    def get_tree_pos(self):
-        pass
-    
-    def tree(self):
-        pass
-        
-        
-    
-    def on_size(self,*args):
-        scale=self.size[1]/self.l_size[1]
-        self.l_size=self.size
-        
-        if self.drew:
-            new_scale = scale * self.parent.parent.ids['sl'].scale
-            if new_scale < self.parent.parent.ids['sl'].scale_min:
-                scale = self.parent.parent.ids['sl'].scale_min / self.parent.parent.ids['sl'].scale
-            elif new_scale > self.parent.parent.ids['sl'].scale_max:
-                scale = self.parent.parent.ids['sl'].scale_max / self.parent.parent.ids['sl'].scale
-            
-            #self.parent.parent.ids['sl'].apply_transform(Matrix().scale(scale,scale,scale))
-            
-            
-    def on_touch_down(self,touch):
-        self.parent.parent.ids['sl'].on_touch_down(touch)
 
-        def get_selected_node(touch):
-            x,y=self.parent.parent.ids['sl'].to_local(touch.x,touch.y)
-            scale=self.draw_scale    
-            x=x/self.size[1]*scale
-            y=y/self.size[1]*scale
-            v=0.002 if self.category=='Planar' else 0.1
-            l=list(filter(lambda i:round(x-v,3)<=self.n_pos[i][0]<=round(x+v,3) and round(y-v,3)<=self.n_pos[i][1]<=round(y+v,3),self.graph.nodes)) 
+    def get_selected_nodes(self,x,y):
+        
+        if not self.root.ids['menubar'].ids['gen_graph'].disabled \
+           and self.graph_edit_mode \
+           and self.graph and (self.info==None or self.info.text!='Retry'):
+            x,y=self.root.ids.viewspace_canvas.to_local(x,y)
+            scale=self.draw_scale
+            
+            
+            x/=scale
+            y/=scale
+            
+            v=self.point_size*(0.00008 if self.category=='Planar' else 0.01)
+        
+            pos=nx.get_node_attributes(self.graph,'pos')
+            
+            l=list(filter(lambda i:round(x-v,3)<=pos[i][0]<=round(x+v,3) and round(y-v,3)<=pos[i][1]<=round(y+v,3),self.graph.nodes)) 
+
             if len(l)!=0:
-                if self.graph_edit_mode=='select_start':
+                
+                if self.graph_edit_mode.startswith('select_start_node'):
                     self.select_start_node(l[0])
-                elif self.graph_edit_mode=='select_goal':
+                elif self.graph_edit_mode.startswith('select_goal_node'):
                     self.select_goal_node(l[0])
-                elif self.graph_edit_mode=='del_node':
+                elif self.graph_edit_mode.startswith('del_nodes'):
                     self.del_node([l[0]])
                    
             else:
-                sleep(0.2)
                 self.show_info('Retry')
                 self.remove_info()
-            
-        if not self.parent.parent.ids['menu'].ids['gen_graph'].disabled and self.graph_edit_mode and self.graph:self.start_activity(get_selected_node,touch)
 
+        
+    def get_tree_pos(self):
+        pass
+
+    
+    def graph_params_changed(self):
+        category=self.category
+        if category=='Tree':
+            new_params=self.tree_params
+        else:
+            new_params=self.lattice_params
+        new_params=[*new_params,self.category,self.g_type]
+        if self.old_params!=new_params:
+            self.old_params=[*new_params]
+            return True
+        else:
+            return False
+
+    
     def planar_quadrangulation(self,n,c_dist,fn,keep_same,sparse,degree_max,seed=None):
         if seed:
             np.random.seed(seed)
@@ -281,140 +361,175 @@ class Graph(AnchorLayout):
         G=nx.grid_2d_graph(int(n**0.5),int(n**0.5))
 
         fn=eval('np.random.'+fn)
-        if not keep_same or self.d is None or len(self.graph.nodes)!=n:
+        if not keep_same or self.graph_n_gulation is None or len(self.graph.nodes)!=n:
             pos=fn(size=(n,2)).astype('f')
         
         nx.set_node_attributes(G,{j:(pos[i,0],pos[i,1]) for i,j in zip(range(n),G.nodes) },'pos')
     
         cdst=(c_dist)**2
-        #G.add_edges_from(((i[j],i[j+1]) for j in [0,1,-1] for i in self.d.simplices if (pos[i[j]][0]-pos[i[j+1]][0])**2+(pos[i[j]][1]-pos[i[j+1]][1])**2<=cdst))
+        #G.add_edges_from(((i[j],i[j+1]) for j in [0,1,-1] for i in self.graph_n_gulation.simplices if (pos[i[j]][0]-pos[i[j+1]][0])**2+(pos[i[j]][1]-pos[i[j+1]][1])**2<=cdst))
         
         return G
     
-    def planar_triangulation(self,n,c_dist,fn,keep_same,sparse,degree_max,seed=0):
+    def planar_triangulation(self,n,c_dist,fn,keep_same,sparse,degree_max,seed=0,update=True):
         if seed:
             np.random.seed(seed)
             
-        degree_max=max(2,degree_max)
+        if not keep_same or self.graph_n_gulation is None or len(self.graph.nodes)!=n or self.old_params:
+            
+            fn=eval('np.random.'+fn)
+            pos=fn(size=(n,2)).astype('float32')
+            self.graph_n_gulation=delaunay(pos)
 
-        rng=range(n)
-        G = nx.Graph()
-        G.add_nodes_from(rng)
+            G = nx.Graph()
+            G.add_nodes_from(range(n))
 
-        fn=eval('np.random.'+fn)
-        if not keep_same or self.d is None or len(self.graph.nodes)!=n:self.d=Delaunay(fn(size=(n,2)))
+            nx.set_node_attributes(G,{i:(pos[i][0],pos[i][1]) for i in G.nodes},'pos')
 
-        pos=self.d.points.astype('f')
-        nx.set_node_attributes(G,{i:(pos[i][0],pos[i][1]) for i in G.nodes},'pos')
-
-        f=lambda x,y: G.degree(x)<=np.random.randint(1,degree_max) and G.degree(y)<=np.random.randint(1,degree_max) if sparse else lambda x,y:True
+            update=True
+            
+        else:
+            G=self.graph
+            pos=self.n_pos
         
-        cdst=(c_dist)**2
-        G.add_edges_from(((i[j],i[j+1]) for j in [0,1,-1] for i in self.d.simplices \
+        if update:
+            degree_max=max(2,degree_max)
+            f=lambda x,y: G.degree(x)<=np.random.randint(1,degree_max) and G.degree(y)<=np.random.randint(1,degree_max) if sparse else lambda x,y:True
+        
+            cdst=(c_dist)**2
+            G.add_edges_from(((i[j],i[j+1]) for j in [0,1,-1] for i in self.graph_n_gulation \
                           if (pos[i[j]][0]-pos[i[j+1]][0])**2+(pos[i[j]][1]-pos[i[j+1]][1])**2<=cdst and f(i[j],i[j+1])))
+
+            update=False
         
         return G             
 
     def remove_info(self):
         sleep(1)
         if self.info:
-            self.parent.parent.ids['control'].remove_widget(self.info)
+            self.root.ids.viewspace.remove_widget(self.info)
             self.info=None
-            
+
+    def reposition_info(self):
+        if self.info:
+            center=self.root.ids.viewspace.center
+            self.info.center=center[0],center[1]
+
+    def rescale_special_nodes(self,scale):
+        self.canvas.get_group('start_nodes')[2].pointsize=self.point_size\
+                                                          *(0.00008 if self.category=='Planar' else 0.01)\
+                                                          /min(1,scale)
+        
+        self.canvas.get_group('goal_nodes')[2].pointsize=self.point_size\
+                                                          *(0.00008 if self.category=='Planar' else 0.01)\
+                                                          /min(1,scale)
+        print(self.root.ids.viewspace_canvas.bbox)
+
+                
     def start_activity(self,fn,*args):
         threading.Thread(target=fn,args=args,daemon=True).start()
 
     def select_start_node(self,node):
-        if self.start_node!=node:
-            scale=self.draw_scale
-            with self.parent.parent.ids['sl'].canvas:
-                PushMatrix()
-                Translate(1,1,0)
-                Scale(self.size[1]/scale,self.size[1]/scale,1)
-                Color(*self.start_node_color)
-                Point(points=self.n_pos[node],pointsize=2*self.point_size/self.size[1]*scale)            
-                if self.start_node:
-                    Color(0,0,0,0.8)
-                    Point(points=self.n_pos[self.start_node],pointsize=2*self.point_size/self.size[1]*scale)            
-                
-                    Color(*self.node_color)
-                    Point(points=self.n_pos[self.start_node],pointsize=self.point_size/self.size[1]*scale)            
-                PopMatrix()
-                
-            self.start_node=node
+        if self.start_nodes!=node:
+            self.canvas.get_group('start_nodes')[2].add_point(*self.n_pos[node])
+            
+            self.start_nodes.append(node)
         self.graph_edit_mode=None
         
     def select_goal_node(self,node):
-        if self.goal_node!=node:
-            scale=self.draw_scale
-            with self.parent.parent.ids['sl'].canvas:
-                PushMatrix()
-                Translate(1,1,0)
-                Scale(self.size[1]/scale,self.size[1]/scale,1)
-                Color(*self.goal_node_color)      
-                Point(points=self.n_pos[node],pointsize=2*self.point_size/self.size[1]*scale)            
-                if self.goal_node:
-                    Color(0,0,0,0.8)      
-                    Point(points=self.n_pos[self.goal_node],pointsize=2*self.point_size/self.size[1]*scale)            
+        if self.goal_nodes!=node:
+            self.canvas.get_group('goal_nodes')[2].add_point(*self.n_pos[node])
                 
-                    Color(*self.node_color)      
-                    Point(points=self.n_pos[self.goal_node],pointsize=self.point_size/self.size[1]*scale)            
-                PopMatrix()
-                
-            self.goal_node=node
+            self.goal_nodes.append(node)
         self.graph_edit_mode=None
+
         
     def set_edit_mode(self,mode):
         self.graph_edit_mode=mode if self.graph_edit_mode!=mode else None
+
         
     def show_info(self,info):
         if not self.info:
-            anim_bar = Label(text=info,center=self.center,size_hint=(None,None))
+            center=self.root.ids.viewspace.center
+            anim_bar = Label(text=info,center=(center[0]+25,center[1]+25),size_hint=(None,None))
             anim_bar.size=anim_bar.texture_size
 
             anim = Animation(opacity=0.3, duration=0.6)
             anim += Animation(opacity=1, duration=0.8)
             anim.repeat = True
-            self.parent.parent.ids['control'].add_widget(anim_bar,-1)
+            self.root.ids.viewspace.add_widget(anim_bar)
             anim.start(anim_bar)
             self.info=anim_bar
             
     def update(self,dct):
-        pos=np.array([self.n_pos[i] for i in self.graph.nodes]).astype('f').reshape(-1)
-
-        scale=self.draw_scale
+        inst_group=self.canvas.get_group('algorithm_runtime_activity')[0]
         
-        with self.parent.parent.ids['sl'].canvas:     
-            PushMatrix()
-            Translate(1,1,0)
-            Scale(self.size[1]/scale,self.size[1]/scale,1)
+        point_size=self.point_size*(0.00008 if self.category=='Planar' else 0.01)
+        
+        for key in dct:
+            nodes=dct[key] if key!='closed' else dct[key][1:]
+            #print(dct[key],nodes)
+            if nodes and key!='path':
+                pos=[j for i in nodes for j in self.n_pos[i]]
+                for s in ('_edges','_nodes'):
+                    insts=inst_group.get_group(key+s)
+                    if insts:
+                        inst=insts[-1]
+                        if s=='_edges':
+                            if len(inst.vertices)//4<65535:pass
 
-            Color(*self.node_color)
-            for i in range(0,len(pos),2**13):
-                Point(points=list(pos[i:i+2**13].reshape(-1)),pointsize=self.point_size/self.size[1]*scale)
-            Color(*self.goal_node_color)
-            Point(points=self.n_pos[self.goal_node],pointsize=2*self.point_size/self.size[1]*scale)
+                            else:pass
+                                ##                for i in range(0,len(epos),65536):
+        ##                    inst_group.add(Mesh(vertices=epos[4*i:4*(i+65536)],
+        ##                         indices=range(len(epos)), mode="lines",group=key+'_edges'))
+        ##                print(inst_group.get_group(key)[-1],key)#.vertices,inst_group.children[-1].indices)
+        ## 
+                        
+                        else:
+                            ind=32766-len(inst.points)
+                            inst.points+=pos[:ind]
+                            inst.flag_update()
+                            for i in range(ind,len(pos[ind:]),32766):
+                                inst_group.add(Point(points=pos[i:i+32766],
+                                                    source='assets/images/textures/circle.png',
+                                                    pointsize=point_size,
+                                                    group=key+'_nodes'))
+                    else:
+                                      
+                        inst_group.add(Color(
+                            *self.color_dict.setdefault(key,[0.1,0.5,0.2,0]),
+                            group=key))
+                        
+##                        if key=='closed':
+##                            epos=[j for i in nodes for j in (*self.n_pos[i],0,0,*self.n_pos[self.graph.nodes[i]['parent']],0,0)]
+##                        else:
+##                            epos=[j for i in nodes for j in (*self.n_pos[i],0,0,*self.n_pos[self.graph.nodes[i]['parent']],0,0)]
+##                        #print(epos,'l')
+        ##                for i in range(0,len(epos),65536):
+        ##                    inst_group.add(Mesh(vertices=epos[4*i:4*(i+65536)],
+        ##                         indices=range(len(epos)), mode="lines",group=key+'_edges'))
+        ##                print(inst_group.get_group(key)[-1],key)#.vertices,inst_group.children[-1].indices)
+        ##            
+                    
+                    for i in range(0,len(pos),32766):
+                        inst_group.add(Point(points=pos[i:i+32766],
+                              source='assets/images/textures/circle.png',
+                              pointsize=point_size,
+                              group=key+'_nodes'))
 
-            for key in dct:
-                if key!='path' and len(dct[key])!=0:
-                    pos=np.array([self.n_pos[i] for i in dct[key]]).astype('f').reshape(-1)
-                    Color(*self.color_dict.setdefault(key,[0.1,0.5,0.2,0]))
-                    for i in range(0,len(pos),2**13):
-                        Point(points=list(pos[i:i+2**13]),pointsize=self.point_size/self.size[1]*scale)
-                
-            path=dct.get('path',[])
-            if path:
-                p_pos=np.array([(*self.n_pos[i],0,0) for i in path]).astype('f')
-                edges=np.array([(i,i+1) for i in range(len(path)-1)]).reshape(-1)
-                
-                Color(*self.color_dict['path'])
-                for i in range(0,len(p_pos),2**13):
-                    Point(points=list(p_pos[i:i+2**13,:2].reshape(-1)),pointsize=self.point_size/self.size[1]*scale)
-                Point(points=[*self.n_pos[self.goal_node],*self.n_pos[self.start_node]],pointsize=self.point_size/self.size[1]*scale)
-
-                for i in range(0,len(p_pos),65536):
-                    Mesh(vertices=p_pos[i:i+65536].reshape(-1), indices=edges, mode="lines")
-            PopMatrix()
-                
+            nodes=dct['path']
+            if nodes:
+                pos=[j for i in nodes for j in self.n_pos[i]]
+                inst_group.add(Color(
+                    *self.color_dict.setdefault('path',[0.1,0.5,0.2,0]),
+                    group='path'))
+                inst_group.add(Line(points=pos,group='path'))  
+                        
+                for i in range(0,len(pos),32766):
+                        inst_group.add(Point(points=pos[i:i+32766],
+                              source='assets/images/textures/circle.png',
+                              pointsize=point_size,
+                              group='path')) 
+                    
             
         

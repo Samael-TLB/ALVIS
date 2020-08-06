@@ -1,8 +1,8 @@
 class bfs(AlgorithmBase):
     
     def execute(self):
-        start=self.start
-        goal=self.goal
+        start=self.start_nodes[0]
+        goal=self.goal_nodes[0]
         queue,visited=self.get_list('open'),self.get_list('closed')
         queue.append(start)
         

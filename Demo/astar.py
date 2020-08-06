@@ -3,8 +3,8 @@ import numpy as np
 class astar(AlgorithmBase):
  
     def execute(self):
-        start=self.start
-        goal=self.goal
+        start=self.start_nodes[0]
+        goal=self.goal_nodes[0]
         queue,visited=self.get_list('open'),self.get_list('closed')
         queue.append(start)
         g={i:np.inf  for i in self.get_nodes()}

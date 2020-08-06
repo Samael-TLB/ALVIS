@@ -1,11 +1,6 @@
-from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.screenmanager import ScreenManager
 
+from mainscreen import MainScreen
 
-from menubar import MenuBar
-from graph import Graph
-from controlpanel import ControlPanel
-
-
-
-class Alvis(FloatLayout):
+class Alvis(ScreenManager):
     pass    
