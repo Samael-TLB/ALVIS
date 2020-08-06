@@ -1,0 +1,1 @@
+Run the setup.sh for completing the setup of the application
