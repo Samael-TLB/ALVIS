@@ -29,11 +29,12 @@
      "options":["Triangulation","Quadrangulation"]
 	 },
     
-    {"type": "numeric",
+    {"type": "boundednumeric",
      "title": "Nodes",
      "desc":"Set the no of nodes to be used", 
      "section": "Planar",
-     "key": "n"
+     "key": "n",
+	 "max": 65536
 	 },
 
     {"type": "numeric",
@@ -87,8 +88,22 @@
      "desc":"Set the type of tree to be used", 
      "section": "Tree",
      "key": "g_type",
-     "value":"Random Tree",
+     "value":"Balanced Tree",
      "options":["Random Tree","Balanced Tree","Binomial Tree","Full Rary Tree","Barabasi Albert"]
+	 },
+	 
+	 {"type": "numeric",
+     "title": "Branching factor",
+     "desc":"Set the branching factor of the tree",
+     "section": "Tree",
+     "key": "r"
+	 },
+
+     {"type": "numeric",
+     "title": "Height",
+     "desc":"Set the height of the tree",
+     "section": "Tree",
+     "key": "h"
 	 },
     
     {"type":"title",
@@ -103,18 +118,20 @@
      "options":["2d Grid/Lattice","Hexagonal Lattice","Triangular Lattice"]
 	 },
     
-    {"type": "numeric",
+    {"type": "boundednumeric",
      "title": "Lattice Rows",
      "desc":"Set the no of lattice rows to be used (cols in rectangular grid)", 
      "section": "Lattice",
-     "key": "m"
+     "key": "m",
+	 "max": 200
 	 },
     
-    {"type": "numeric",
+    {"type": "boundednumeric",
      "title": "Lattice Columns",
      "desc":"Set the no of lattice columns to be used (rows in rectangular grid)", 
      "section": "Lattice",
-     "key": "n"
+     "key": "n",
+	 "max": 200
 	 }
     
 ]
