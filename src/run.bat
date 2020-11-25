@@ -1,1 +1,0 @@
-pyinstaller -n ALVIS main.py -w --hidden-import win32file --hidden-import win32timezone  -i Data\\kivy-icon-512.ico --exclude-module matplotlib --exclude-module cv2 --exclude-module tcl --exclude-module tk --exclude-module wx --exclude-module notebook --exclude-module psutil --exclude-module IPython --exclude-module PyQt5 --add-data Data;Data --onedir

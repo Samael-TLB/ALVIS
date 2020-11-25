@@ -1,0 +1,373 @@
+#kivy:1.11.0
+
+#:import GridLayout kivy.uix.gridlayout.GridLayout
+#:import isdir os.path.isdir
+#:import hex kivy.utils.get_hex_from_color
+<Alvis>
+	id: screenmanager
+	
+	MainScreen
+
+
+##Main Interface screen
+<MainScreen>
+	name:'MainScreen'
+	
+	FloatLayout
+		
+		##Laid out as per drawing order to maintain depth order
+		WorkSpace:
+			pos_hint:{'top':1-menubar.height/root.height}
+			size_hint:1,1-(menubar.height+controlpanel.height)/root.height
+			on_size:if codespace.width:codespace.width=app.root.width * .35
+			
+			ViewSpace:
+				id:viewspace
+				size_hint:1,1
+				on_size:if app.graph:app.graph.reposition_info()
+				
+				ScatterPlane:
+					id:viewspace_canvas
+					scale_min:0.001
+					on_scale:if app.graph.drew:app.graph.rescale_special_nodes(args[1])
+					on_transform:app.pause_alg_on_touch_down()
+					on_touch_down:app.graph.start_activity(app.graph.get_selected_nodes,args[1].x,args[1].y)
+					on_touch_up:app.unpause_alg_on_touch_up()
+					
+			CodeSpace:
+				id: codespace
+				size_hint_x: None
+				width: 0
+			
+				BoxLayout:
+					orientation:'vertical'
+					
+					CodeInput:
+						id: code panel
+						#lexer: CythonLexer()
+						font_size: '12sp'
+						on_text:app.compiled=False;
+						
+					Label:
+						id:error msg
+						font_size: '12sp'
+						color:1,0,0,1
+						size_hint_y:None
+						height:0
+						text_size: self.size
+						halign:'left'
+						valign:'middle'
+					
+		ControlPanel:
+			id:controlpanel
+			size_hint:1,None
+			pos_hint:{'top':self.height/root.height}
+			
+		
+		MenuBar:
+			id:menubar
+			pos_hint: {'top':1}
+			size_hint:1,None	
+			
+		
+		
+##Menu Bar section	
+<MenuBar>
+	size:self.size[0],st.height
+	
+	ActionView:
+		use_separator: False
+		
+		MenuButton:
+			id:st
+			text:'Settings'
+			size:self.texture_size
+			on_release:app.pause_alg_on_touch_down();app.open_settings()
+						
+		HiddenActionPrevious:
+			border:min(16,root.size[1]/2),10,min(16,root.size[1]/2),10
+
+		ActionOverflow:
+		
+		MenuButton:
+			id:gen_graph
+			text:'Generate Graph'
+			on_press:app.graph.start_activity(app.graph.gen_graph);self.disabled=True
+		
+		MenuButton:
+			id:load
+			text:'Load Algorithm'
+			on_press:app.pause_alg_on_touch_down();app.load_alg()
+			disabled:True
+			
+		#ActionGroup:
+		#	text:'Edit Graph'
+		#	size_hint:None,None
+		#	size:self.texture_size
+		#	padding:5,5	
+		#	border:min(16,self.size[1]/2),16,min(16,self.size[1]/2),16
+		#	font_size:12
+		#	separator_width:0
+		#	mode:'spinner'
+			
+		MenuButton:
+			id:del
+			text:'Delete Node'
+			on_release:app.graph.set_edit_mode('del_nodes')
+			disabled:True
+			
+		MenuButton:
+			id:sn
+			text:'Select Start Node'
+			on_release:app.graph.set_edit_mode('select_start_node_mode_single')
+			disabled:True
+			
+		MenuButton:
+			id:gn
+			text:'Select Goal Node'
+			on_release:app.graph.set_edit_mode('select_goal_node_mode_multi')
+			disabled:True
+			
+		MenuButton:
+			id:overlay
+			text:'Overlay'
+			on_press:app.pause_alg_on_touch_down();app.graph.start_activity(app.graph.overlay_curr_algo_run)
+			on_release:app.unpause_alg_on_touch_up()
+			disabled:True
+			
+		MenuButton:
+			id:clear
+			text:'Clear Screen'
+			on_press:app.pause_alg_on_touch_down();app.graph.clear_screen()
+			on_release:app.unpause_alg_on_touch_up()
+			disabled:True
+			
+		ActionToggleButton:
+			id:cp
+			size_hint:None,None
+			size:self.texture_size
+			padding:5,5	
+			border:min(16,self.size[1]/2),16,min(16,self.size[1]/2),16
+			font_size:12
+			text:'Code Panel'
+			on_release:app.toggle_code_panel()
+			disabled:True
+			
+<MenuButton@ActionButton>
+	size_hint:None,None
+	size:self.texture_size
+	padding:5,5	
+	border:min(16,self.size[1]/2),16,min(16,self.size[1]/2),16
+	font_size:12
+
+	
+<HiddenIconActionPrevious@ActionPrevious>:
+    title: app.title if app.title is not None else 'Action Previous'
+    with_previous: False
+    app_icon: ''
+    ## Comment out the following two lines if you wish to have
+    ##  ActionGroup(s) and or ActionButtion(s) pushed to the right
+    size_hint_x: None
+    width: len(self.title) * 10
+	##on_size:if isinstance(self.children[-1],GridLayout):self.remove_widget(self.children[-1]) 
+	on_press: print(self.children,self.border,self.size,self.minimum_width,self.app_icon_width)
+
+
+<HiddenTextActionPrevious@ActionPrevious>: 
+    with_previous: False
+	size_hint:None,1
+	width:self.minimum_width
+    title: ''
+
+<HiddenActionPrevious@ActionPrevious>:
+    with_previous: False
+	text:''#without it some pixels are shown
+	size_hint: None, None
+    size: 0, 0
+	
+#Algorithm File Chooser
+<AlgFileChooser>:
+    
+	orientation: 'vertical'
+	
+	BoxLayout:
+		size_hint_y: None
+		size_hint_y: None
+		height: sp(30)
+		
+		TextInput:
+			id:path
+			text:fc.path
+			on_text:if isdir(self.text):fc.path=self.text
+			multiline:False
+			size_hint:0.8,1
+			
+		Button:
+			text: 'Change View'
+			on_release: fc.view_mode = 'icon' if fc.view_mode=='list' else 'list'
+			size_hint:0.2,1
+			
+	FileChooser:
+		id: fc
+		filters:['*.py']
+		on_selection:if self.selection and self.selection[0].endswith('.py'):file.text=self.selection[0][len(self.path)+1:]
+        
+		on_path:pass
+		
+		FileChooserIconLayout
+		FileChooserListLayout
+		
+	BoxLayout:
+		size_hint_y: None
+		height: sp(30)
+		font_size:12
+		TextInput:
+			id:file
+			text:''
+			size_hint:0.8,1
+		
+		Button:
+			id:opf
+			text:"Open"
+			on_release:if fc.selection and fc.selection[0].endswith('.py'):app.alg_file=fc.selection[0];app.alg_file_popup.dismiss()
+			size_hint:0.1,1
+			
+		Button:
+			text:"Close"
+			on_release:app.alg_file_popup.dismiss()
+			size_hint:0.1,1	
+	
+	
+
+##WorkSpace Section	
+<WorkSpace>:
+	
+	canvas.before:
+        Color:
+            rgba:0,0,0,1
+			
+        Rectangle:
+			pos:self.pos
+            size: self.size
+            source: 'assets/images/background.png'
+	canvas:
+		Color:
+			rgba:0.5,0.5,0.5,0.1
+		Rectangle:
+			pos:self.pos
+			size:self.size
+			
+
+	
+	
+
+##Control Panel section
+<ControlPanel>
+	canvas.before:
+        Color:
+            rgba:0,0,0,1
+			
+        Rectangle:
+            size: self.size
+            source: 'atlas://data/images/defaulttheme/action_bar'
+
+	size:self.width,35
+	
+	RelativeLayout:
+		pos_hint:{'x':0}
+		
+		ControlLabel:
+			id:cl
+			text:"Slow"
+			pos:0,root.center_y			
+			
+		Slider:
+			id:slider
+			size_hint:0.3,1
+			pos:cl.width+5,root.center_y-self.padding
+			value:1
+			min:1
+			max:1000
+			step:1
+			on_value:if app.alg:app.alg.val=self.value;app.pause_alg_on_touch_down()
+			on_touch_up:app.unpause_alg_on_touch_up()
+			
+		ControlLabel:
+			text:"Fast"
+			pos:slider.pos[0]+slider.width+5,root.center_y
+	
+	
+	BoxLayout:	
+		pos_hint:{'x':1-(self.width+30)/root.width}
+		size_hint:None,None
+		height:40
+		ControlButton:
+			id:start
+			text:'Start'
+			on_press:app.start_alg();
+			
+		ControlToggleButton:
+			id:pause
+			text:'Pause'
+			on_release:
+				self.text='Play' if self.text!='Play' else 'Pause';
+				if app.alg:app.alg_pause.set() if self.text=='Pause' else app.alg_pause.clear();
+				if app.alg_thread and not app.alg_pause.is_set():app.root.get_screen('MainScreen').ids['menubar'].ids['overlay'].disabled=False
+				
+		ControlButton:
+			text:'Reset'
+			on_release:app.reset_alg()
+			
+<ControlLabel@Label>
+	font_size:12
+	size_hint:None,None
+	size:self.texture_size
+	padding:5,0
+	
+<ControlButton@Button>
+	size_hint:None,None
+	size:self.texture_size
+	padding:5,5	
+	border:min(16,self.size[1]/2),16,min(16,self.size[1]/2),16
+	font_size:12
+
+
+
+<ControlToggleButton@ToggleButton>
+	size_hint:None,None
+	size:self.texture_size
+	padding:5,5	
+	border:min(16,self.size[1]/2),16,min(16,self.size[1]/2),16
+	font_size:12
+	
+	
+
+##Custom setting widget section
+<SettingColor>
+	Widget:
+		size_hint_x:None
+		width:max(0,min(0.40,1-(color.width+30)/self.parent.width))*self.parent.width
+		
+	Widget:
+		size_hint_x:None
+		width:30
+		canvas:
+			Color:
+				rgba:root.value.split(',') if root.value else (1,1,1,1)
+			Ellipse:
+				pos:self.center_x-7.5,self.center_y-7.5
+				size:15,15
+			Color:
+				rgba:1,1,1,0.5
+			Line:
+				circle:self.center_x,self.center_y,9.5
+				width:2
+	Label:
+		id:color
+		size_hint_x:None
+		text:hex([float(i) for i in root.value.split(',')]) if root.value else '#fffffff'
+		text_size:self.size
+		italic:True
+		halign:'left'
+		valign:'center'
+		

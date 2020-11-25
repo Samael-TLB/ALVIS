@@ -20,8 +20,10 @@ class bfs(AlgorithmBase):
                     queue.append(neighbor)
             self.alg_iteration_end()
             
-        if self.found_goal:self.genpath()
+        if self.found_goal:
+            path=self.gen_path()
+            self.show_path(path)
         else: self.show_info('No path available')
    
-        self.execute_end()
+        
         

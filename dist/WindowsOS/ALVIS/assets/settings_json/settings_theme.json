@@ -1,6 +1,6 @@
 [
     {"type":"title",
-     "title":"Graph"
+     "title":"Visualization Color Parameters"
      },
     {"type":"color",
      "title":"Node Color",
@@ -58,10 +58,23 @@
      "key":"path"
      },
 	 
+	 
+	 {"type":"title",
+     "title":"Visualization Non-Color Parameters"
+     },
 	 {"type":"numeric",
      "title":"Node Size",
      "desc":"Set the node size",
      "section":"theme",
-     "key":"point size"
+     "key":"node size"
+	 },
+	 
+	 {"type":"optionscustom",
+     "title":"Node Shape",
+     "desc":"Set the node shape",
+     "section":"theme",
+     "key":"node shape",
+	 "value":"Circle",
+	 "options":["Circle","Triangle","Square","Custom Shape"]
 	 }
     ]
