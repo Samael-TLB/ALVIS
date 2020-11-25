@@ -1,0 +1,137 @@
+[
+    {"type":"title",
+     "title":"Graph Generation Parameters"
+	 },
+    {"type": "options",
+     "title": "Graph Category",
+     "desc":"Set the category of graph to be used", 
+     "section": "graph",
+     "key": "category",
+     "value":"Planar",
+     "options":["Planar","Tree","Lattice"]
+	 },
+    
+	{"type": "bool",
+     "title": "Weighted",
+     "desc":"Set if the generated graph should have weighted edges", 
+     "section": "graph",
+     "key": "weighted"
+	 },
+	 
+    {"type":"title",
+     "title":"Planar Graph Parameters"
+     },
+    {"type": "options",
+     "title": "Planar Type",
+     "desc":"Set the type of planar graph to be used", 
+     "section": "Planar",
+     "key": "g_type",
+     "options":["Triangulation","Quadrangulation"]
+	 },
+    
+    {"type": "boundednumeric",
+     "title": "Nodes",
+     "desc":"Set the no of nodes to be used", 
+     "section": "Planar",
+     "key": "n",
+	 "max": 65536
+	 },
+
+    {"type": "numeric",
+     "title": "Clipping Distance",
+     "desc":"Set the minimum clipping distance to be used", 
+     "section": "Planar",
+     "key": "c_dist"
+	 },
+
+    {"type": "string",
+     "title": "Random Function",
+     "desc":"Set the random function to be used for point generation", 
+     "section": "Planar",
+     "key": "fn"
+	 },
+    
+    {"type": "bool",
+     "title": "Keep Same",
+     "desc":"Set if the same node positions is to be used", 
+     "section": "Planar",
+     "key": "keep_same"
+	 },
+
+    {"type": "bool",
+     "title": "Sparse",
+     "desc":"Set if the graph is to be a sparse graph", 
+     "section": "Planar",
+     "key": "sparse"
+	 },
+
+    {"type": "numeric",
+     "title": "Degree",
+     "desc":"Set the maximum degree of a node in the graph", 
+     "section": "Planar",
+     "key": "degree_max"
+	 },
+    
+    {"type": "numeric",
+     "title": "Seed",
+     "desc":"Set the random seed to be used", 
+     "section": "Planar",
+     "key": "seed"
+	 },
+    
+
+    {"type":"title",
+     "title":"Tree Parameter"
+     },
+    {"type": "options",
+     "title": "Tree Type",
+     "desc":"Set the type of tree to be used", 
+     "section": "Tree",
+     "key": "g_type",
+     "value":"Balanced Tree",
+     "options":["Random Tree","Balanced Tree","Binomial Tree","Full Rary Tree","Barabasi Albert"]
+	 },
+	 
+	 {"type": "numeric",
+     "title": "Branching factor",
+     "desc":"Set the branching factor of the tree",
+     "section": "Tree",
+     "key": "r"
+	 },
+
+     {"type": "numeric",
+     "title": "Height",
+     "desc":"Set the height of the tree",
+     "section": "Tree",
+     "key": "h"
+	 },
+    
+    {"type":"title",
+     "title":"Lattice Parameters"
+     },
+    {"type": "options",
+     "title": "Lattice Type",
+     "desc":"Set the type of lattice to be used", 
+     "section": "Lattice",
+     "key": "g_type",
+     "value":"2d Grid/Lattice",
+     "options":["2d Grid/Lattice","Hexagonal Lattice","Triangular Lattice"]
+	 },
+    
+    {"type": "boundednumeric",
+     "title": "Lattice Rows",
+     "desc":"Set the no of lattice rows to be used (cols in rectangular grid)", 
+     "section": "Lattice",
+     "key": "m",
+	 "max": 200
+	 },
+    
+    {"type": "boundednumeric",
+     "title": "Lattice Columns",
+     "desc":"Set the no of lattice columns to be used (rows in rectangular grid)", 
+     "section": "Lattice",
+     "key": "n",
+	 "max": 200
+	 }
+    
+]

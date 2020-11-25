@@ -1,0 +1,80 @@
+[
+    {"type":"title",
+     "title":"Visualization Color Parameters"
+     },
+    {"type":"color",
+     "title":"Node Color",
+     "desc":"Set the normal node color",
+     "section":"theme",
+     "key":"node"
+     },
+    
+    {"type":"color",
+     "title":"Edge Color",
+     "desc":"Set the normal edge color",
+     "section":"theme",
+     "key":"edge"
+     },
+
+    {"type":"color",
+     "title":"Start Node Color",
+     "desc":"Set the start node color",
+     "section":"theme",
+     "key":"start"
+     },
+
+    {"type":"color",
+     "title":"Goal Node Color",
+     "desc":"Set the goal node color",
+     "section":"theme",
+     "key":"goal"
+     },
+
+    {"type":"color",
+     "title":"Open Node Color",
+     "desc":"Set the open node color",
+     "section":"theme",
+     "key":"open"
+     },
+
+    {"type":"color",
+     "title":"Closed Node Color",
+     "desc":"Set the closed node color",
+     "section":"theme",
+     "key":"closed"
+     },
+    
+    {"type":"color",
+     "title":"Relay Node Color",
+     "desc":"Set the relay node color",
+     "section":"theme",
+     "key":"relay"
+     },
+
+    {"type":"color",
+     "title":"Path Color",
+     "desc":"Set the path node color",
+     "section":"theme",
+     "key":"path"
+     },
+	 
+	 
+	 {"type":"title",
+     "title":"Visualization Non-Color Parameters"
+     },
+	 {"type":"numeric",
+     "title":"Node Size",
+     "desc":"Set the node size",
+     "section":"theme",
+     "key":"node size"
+	 },
+	 
+	 {"type":"optionscustom",
+     "title":"Node Shape",
+     "desc":"Set the node shape",
+     "section":"theme",
+     "key":"node shape",
+	 "value":"Circle",
+	 "options":["Circle","Triangle","Square","Custom Shape"]
+	 }
+    ]
